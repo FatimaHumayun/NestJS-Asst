@@ -5,10 +5,11 @@ import { Product } from './product/product.entity';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { Categories } from './categories/categories.entity';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
-    ProductModule,
+    ConfigModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
@@ -21,6 +22,7 @@ import { Categories } from './categories/categories.entity';
       synchronize: true,
     }),
     AuthModule,
+    ProductModule,
     CategoriesModule,
   ],
 })

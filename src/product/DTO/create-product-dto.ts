@@ -7,5 +7,6 @@ export class CreateProductDTO {
   description: string;
   @IsNotEmpty()
   price: number;
+
   categories: string;
 }

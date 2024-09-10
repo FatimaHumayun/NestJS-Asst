@@ -13,10 +13,12 @@ export class ProductRepository extends Repository<Product> {
     super(Product, entityManager);
   }
   async createProduct(
-    createProductDTO: CreateProductDTO,
+    createProductDto: CreateProductDTO,
     user: User,
+    transactionalEntityManager,
   ): Promise<Product> {
-    const { name, description, price, categories } = createProductDTO;
+    const { name, description, price, categories } = createProductDto;
+    console.log('Product Values:', { name, description, price, categories });
     const category = await this.manager.findOne(Categories, {
       where: { id: categories },
     });

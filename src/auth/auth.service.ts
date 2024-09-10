@@ -6,6 +6,7 @@ import { AuthCredentialsDTO } from './Mapper/auth-credentials.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './jwt-payload.interface';
+import { Product } from 'src/product/product.entity';
 
 //import { User } from './user.entity';
 
@@ -36,5 +37,13 @@ export class AuthService {
     } else {
       throw new UnauthorizedException('Please check your log-in credentials');
     }
+  }
+  //get user products here
+  async getProductsByUser(id: string): Promise<Product[]> {
+    const userProducts = await this.userRepository.findOne({
+      where: { id },
+      relations: ['products'],
+    });
+    return userProducts.products; //userProducts is of type User,since i'm in user Repository, return type is expected to be Product array, thus need to access the products from there
   }
 }

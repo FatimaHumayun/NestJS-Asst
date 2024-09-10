@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ProductRepository } from './product.repository';
 import { Product } from './product.entity';
 import { CreateProductDTO } from './DTO/create-product-dto';
@@ -15,27 +19,61 @@ export class ProductsService {
     this.productRepository = new ProductRepository(this.dataSource.manager);
   }
   //Get Products by ID
-  async getProductsById(id: string): Promise<Product> {
-    const found = await this.productRepository.findOne({ where: { id } });
-    if (!found) {
-      throw new NotFoundException(`Product with ID "${id}" not found!`);
+  async getProductsById(id: string, user: User): Promise<Product> {
+    try {
+      const found = await this.productRepository.findOne({
+        where: { id, user },
+      });
+      if (!found) {
+        throw new NotFoundException('Not Authorized to Access!');
+      }
+      return found;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      //console.log(error);
+      throw new InternalServerErrorException('Failed to fetch product');
     }
-    return found;
   }
   //CREATE A PRODUCT
-  createProduct(
-    createProductDTO: CreateProductDTO,
+  async createProduct(
+    createProductDto: CreateProductDTO,
     user: User,
   ): Promise<Product> {
-    return this.productRepository.createProduct(createProductDTO, user);
+    try {
+      return await this.dataSource.transaction(
+        async (transactionalEntityManager) => {
+          const product = await this.productRepository.createProduct(
+            createProductDto,
+            user,
+            transactionalEntityManager,
+          );
+          return product;
+        },
+      );
+    } catch (error) {
+      console.log('Creation Error', error);
+      throw new InternalServerErrorException(error);
+    }
   }
   //DELETE A PRODUCT
-  async deleteProduct(id: string): Promise<void> {
-    const result = await this.productRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Product with ID "${id}" not found!`);
+  async deleteProduct(id: string, user: User): Promise<void> {
+    try {
+      const result = await this.productRepository.delete({ id, user });
+      //if deletion affected any rows
+      if (result.affected === 0) {
+        throw new NotFoundException('Not authorized to delete this product');
+      }
+      console.log('Deleted Product', result);
+    } catch (error) {
+      //this will check if the error  type is an instance of notfoundexcep(404 aye ga agar huwa tu)
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      //koi unknown error
+      else {
+        throw new InternalServerErrorException('An unexpected error occurred'); //500 res
+      }
     }
-    console.log(result);
   }
   //UPDATE A PRODUCT INFO
   async udpateProduct(
@@ -43,36 +81,76 @@ export class ProductsService {
     name: string,
     description: string,
     price: number,
+    user: User,
+    //categoryId: string,
   ): Promise<Product> {
-    const product = await this.getProductsById(id);
-    if (!product) {
-      throw new NotFoundException(`Product with ID ${id} not found`);
+    try {
+      return await this.dataSource.transaction(
+        async (transactionalEntityManager) => {
+          const product = await transactionalEntityManager.findOne(Product, {
+            where: { id, user },
+          });
+          if (!product) {
+            throw new NotFoundException('Not Authorized to Access!');
+          }
+          product.name = name;
+          product.description = description;
+          product.price = price;
+          //product.categories = categoryId;
+          await this.productRepository.save(product);
+          return product;
+        },
+      );
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException('Failed to update product'); //500
+      }
     }
-    product.name = name;
-    product.description = description;
-    product.price = price;
-    await this.productRepository.save(product);
-    return product;
   }
+
   //GET ALL PRODUCTS
   async getAllProducts(): Promise<Product[]> {
-    const found = await this.productRepository.find();
-    return found;
+    try {
+      const found = await this.productRepository.find();
+      return found;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      //console.log(error);
+      throw new InternalServerErrorException('Unable to fetch products');
+    }
   }
   //GET PRODUCTS BY USER ID
-  async getUserProductsById(id: string): Promise<Product[]> {
-    const userProduct = await this.productRepository.find({
-      where: { user: { id } },
-      relations: ['user'],
-    });
-    return userProduct;
+  async getUserProductsById(id: string, user: User): Promise<Product[]> {
+    try {
+      if (id !== user.id) {
+        throw new NotFoundException('Not Authorized to Access');
+      }
+      const userProduct = await this.productRepository.find({
+        where: { user: { id } },
+        relations: ['user'],
+      });
+      return userProduct;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      //console.log('Fetching error', error);
+      throw new InternalServerErrorException('Failed to fetch product'); //500
+    }
   }
+
   //GET PRODUCTS BY CATEGORY ID
   async getCategoryProductsById(id: string): Promise<Product[]> {
-    const categoryProduct = await this.productRepository.find({
-      where: { categories: { id } },
-      relations: ['categories'],
-    });
-    return categoryProduct;
+    try {
+      const categoryProduct = await this.productRepository.find({
+        where: { categories: { id } },
+        relations: ['categories'],
+      });
+      return categoryProduct;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      // console.log('category id error', error);
+      throw new InternalServerErrorException('Failed to fetch product');
+    }
   }
 }

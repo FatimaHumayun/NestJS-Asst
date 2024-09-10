@@ -23,8 +23,11 @@ export class ProductController {
 
   //GET PRODUCT BY ID HERE
   @Get('/:id')
-  getProductById(@Param('id') id: string): Promise<Product> {
-    return this.productService.getProductsById(id);
+  getProductById(
+    @GetUser() user: User,
+    @Param('id') id: string,
+  ): Promise<Product> {
+    return this.productService.getProductsById(id, user);
   }
   //CREATE PRODUCT HERE
   @Post()
@@ -32,21 +35,29 @@ export class ProductController {
     @Body() createProductDto: CreateProductDTO,
     @GetUser() user: User,
   ): Promise<Product> {
+    console.log('Received DTO:', createProductDto);
     return this.productService.createProduct(createProductDto, user);
   }
   @Delete('/:id')
-  deleteProduct(@Param('id') id: string): Promise<void> {
-    return this.productService.deleteProduct(id);
+  deleteProduct(@GetUser() user: User, @Param('id') id: string): Promise<void> {
+    return this.productService.deleteProduct(id, user);
   }
   //returning void here won't cause an error
   @Patch('/:id')
   updateProduct(
+    @GetUser() user: User,
     @Param('id') id: string,
     @Body('name') name: string,
     @Body('description') description: string,
     @Body('price') price: number,
   ): Promise<Product> {
-    return this.productService.udpateProduct(id, name, description, price);
+    return this.productService.udpateProduct(
+      id,
+      name,
+      description,
+      price,
+      user,
+    );
   }
   //get all products
   @Get()
@@ -55,8 +66,11 @@ export class ProductController {
   }
   //get user products
   @Get('/user/:id')
-  getUserProductsById(@Param('id') id: string): Promise<Product[]> {
-    return this.productService.getUserProductsById(id);
+  getUserProductsById(
+    @Param('id') id: string,
+    @GetUser() user: User,
+  ): Promise<Product[]> {
+    return this.productService.getUserProductsById(id, user);
   }
   //get category products
   @Get('/category/:id')
